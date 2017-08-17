@@ -1,0 +1,126 @@
+import feedparser
+import requests
+import urllib
+#import unicodecs as csv
+import csv
+
+#Setting URLS for search later
+BASE_URL = 'https://api.curiosity.com/api_v3/content/search/topic?q='
+CURIOSITY_URL_TOPIC = 'https://curiosity.com/topics/'
+CURIOSITY_URL_VIDEO = 'https://curiosity.com/videos/'
+MORE_LIKE_TOPIC = 'https://api.curiosity.com/api_v3/content/more-like-this/topic?limit=1&q='
+MORE_LIKE_VIDEO = 'https://api.curiosity.com/api_v3/content/more-like-this/video?limit=1&q='
+
+#Asking for kind of feed
+respond = raw_input("Please enter the field you want \n Science, Technology, Reddit, All \n")
+
+#RSS feeds feedparser.parse('URL'), could make this a dictionary, Source & Link want to link News source to article and relevant topic
+URLs_Science = {'NASA':'https://www.nasa.gov/rss/dyn/breaking_news.rss',
+    'IFLScience':'https://twitrss.me/twitter_user_to_rss/?user=iflscience',
+    'Phys':'https://phys.org/rss-feed/',
+    'Science Daily':'https://www.sciencedaily.com/rss/top/science.xml',
+    'NYT Science':'http://rss.nytimes.com/services/xml/rss/nyt/Science.xml',
+    'NYT Environment':'http://rss.nytimes.com/services/xml/rss/nyt/Environment.xml',
+    'NYT Space':'http://rss.nytimes.com/services/xml/rss/nyt/Space.xml',
+    'Scientific American':'http://rss.sciam.com/ScientificAmerican-News',
+    'Eureka':'https://www.eurekalert.org/rss.xml',
+    'Science Magazine':'http://www.sciencemag.org/rss/news_current.xml',
+    'New Scientist':'http://feeds.newscientist.com/today-on-ns',
+    'BBC Science and Environment':'http://feeds.bbci.co.uk/news/science_and_environment/rss.xml?edition=uk'}
+#Reddit
+URLs_Reddit = {
+    'r/Dinosaurs':'https://www.reddit.com/r/Dinosaurs/',
+    'r/Oceans':'https://www.reddit.com/r/oceans/',
+    'r/Self Driving Cars':'https://www.reddit.com/r/SelfDrivingCars/',
+    'r/Cars':'https://www.reddit.com/r/cars/',
+    'r/Neuro':'https://www.reddit.com/r/neuro/',
+    'r/Quantum':'https://www.reddit.com/r/quantum/',
+    'r/Travel':'http://www.reddit.com/r/travel/',
+    'r/Running':'http://www.reddit.com/r/running/',
+    'r/Bicycling':'http://www.reddit.com/r/bicycling/',
+    'r/Linguistics':'http://www.reddit.com/r/Linguistics',
+    'r/EveryManShouldKnow':'http://www.reddit.com/r/everymanshouldknow',
+    'r/CampingandHiking':'http://www.reddit.com/r/CampingandHiking/',
+    'r/UrbanExploration':'http://www.reddit.com/r/urbanexploration/',
+    'r/Autos':'http://www.reddit.com/r/Autos/',
+    'r/Backpacking':'http://www.reddit.com/r/Backpacking',
+    'r/LanguageLearning':'http://www.reddit.com/r/languagelearning/'}
+#Technololgy
+URLs_Technology = {
+    'MIT Tech Review':'https://www.technologyreview.com/topnews.rss',
+    'Tech Republic':'http://www.techrepublic.com/rssfeeds/articles/',
+    'NYT Tech':'http://rss.nytimes.com/services/xml/rss/nyt/Technology.xml',
+    'Gizmodo':'http://www.gizmodo.com/index.xml',
+    'Wired':'https://www.wired.com/feed/rss',
+    'ARS Technica':'http://feeds.arstechnica.com/arstechnica/index',
+    'BBC Tech':'http://feeds.bbci.co.uk/news/technology/rss.xml?edition=uk',
+    'Tech Radar':'http://www.techradar.com/rss'}
+if "Science" or "science" or "Sci" or "sci":
+    URLs = URLs_Science
+
+elif "Technology" or "technology" or "Tech" or "tech":
+    URLs = URLs_Technology
+
+elif "Reddit" or "reddit":
+    URLs = URLs_Reddit
+
+elif "All" or "all":
+    URLs = URLs_Science + URLs_Technology + URLs_Reddit
+
+else:
+    print "Unreadable input."
+    exit()
+
+print "Programming running."
+
+#Initiating things
+All_Links_Topic = {}
+All_Links_Video = {}
+check = 0
+actually_everything = []
+#counter = 0
+
+#Going through the URLs
+for key, value in URLs.items():
+    d = feedparser.parse(value)
+
+    #Going through the different feed posts
+    for post in d.entries:
+        term = post.title.encode('utf8')
+        Relevant_Links = []
+        search_topic = MORE_LIKE_TOPIC + urllib.quote(term)
+        search_video = MORE_LIKE_VIDEO + urllib.quote(term)
+        response_topic = requests.get(search_topic)
+        response_video = requests.get(search_video)
+        result_topic = response_topic.json()
+        result_video = response_video.json()
+
+        #Looking for "More Like This" Links
+        for topic in result_topic.get('objects'):
+            link_topic = CURIOSITY_URL_TOPIC + topic.get('slug').encode('utf8')
+            title_topic = topic['title'].encode('utf8')
+            All_Links_Topic['title'] = link_topic
+        #    print "For \"{}\" we found topic \"{}\":\n{}\n\n".format(term,title_topic,link_topic)
+
+        #Same for videos
+        for video in result_video.get('objects'):
+            link_video = CURIOSITY_URL_VIDEO + video.get('slug').encode('utf8')
+            title_video = video['title'].encode('utf8')
+            All_Links_Video['title'] = link_video
+        #    print "For \"{}\" we found video \"{}\":\n{}\n\n".format(term,title_video,link_video)
+
+        everything = [term, key, title_topic, link_topic, title_video, link_video]
+        actually_everything.append(everything)
+
+with open('More_Like_RSS.csv','wb') as csvfile:
+    filewriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    filewriter.writerow(['Title', 'Suggested Topic', 'Suggested Video', 'Source'])
+    filewriter.writerows(actually_everything)
+    #for elements in actually_everything:
+    #    filewriter.writerow(elements)
+
+#Checking for links that appear more than once in the top 3 "More Like This" for all categories
+#check = set([x for x in All_Links_Topic if All_Links_Topic.count(x) > 2])
+#print "Actually Everything", len(actually_everything)
+
+print "Program complete. Output fil in More_Like_RSS.csv"
